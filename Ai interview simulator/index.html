@@ -1,0 +1,460 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>AI Interview Simulator — Frontend</title>
+<style>
+  :root{--bg:#0f1724;--card:#0b1220;--accent:#7c3aed;--muted:#94a3b8;--glass:rgba(255,255,255,0.03)}
+  *{box-sizing:border-box;font-family:Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial}
+  body{margin:0;background:linear-gradient(180deg,#071024 0%,#07192b 100%);color:#e6eef8;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
+  .app{width:960px;max-width:100%;display:grid;grid-template-columns:1fr 360px;gap:20px}
+  .card{background:var(--card);border-radius:12px;padding:18px;box-shadow:0 6px 30px rgba(2,6,23,0.6);border:1px solid rgba(255,255,255,0.03)}
+  header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+  h1{font-size:20px;margin:0}
+  .muted{color:var(--muted);font-size:13px}
+  .controls{display:flex;gap:8px}
+  button{background:var(--accent);border:none;padding:8px 12px;border-radius:8px;color:white;cursor:pointer}
+  button.ghost{background:transparent;border:1px solid rgba(255,255,255,0.06)}
+  .main{min-height:420px;display:flex;flex-direction:column;gap:12px}
+  .question-box{background:var(--glass);padding:14px;border-radius:10px;min-height:120px;display:flex;flex-direction:column;justify-content:center}
+  .question{font-size:18px;margin:0 0 6px 0}
+  .timer{font-size:13px;color:var(--muted)}
+  textarea{width:100%;min-height:120px;padding:10px;border-radius:8px;border:none;background:#021325;color:inherit;resize:vertical}
+  .meta{display:flex;gap:8px;align-items:center;justify-content:space-between}
+  .panel{display:flex;flex-direction:column;gap:12px}
+  .list{display:flex;flex-direction:column;gap:8px}
+  .item{background:rgba(255,255,255,0.02);padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.02);font-size:13px}
+  .score{font-weight:700;font-size:20px;color:var(--accent)}
+  .small{font-size:12px;color:var(--muted)}
+  .progress{height:10px;background:rgba(255,255,255,0.04);border-radius:999px;overflow:hidden}
+  .progress > i{display:block;height:100%;background:linear-gradient(90deg,var(--accent),#4f46e5)}
+  footer{font-size:12px;color:var(--muted);text-align:center;margin-top:8px}
+  .top-right{display:flex;gap:6px;align-items:center}
+  .tag{background:rgba(255,255,255,0.03);padding:6px 8px;border-radius:999px;font-size:12px;border:1px solid rgba(255,255,255,0.02)}
+  .followup{background:#071430;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.02)}
+  .hint{font-size:13px;color:var(--muted)}
+  .checkbox{display:flex;gap:6px;align-items:center}
+  a.link{color:var(--accent);text-decoration:none}
+  @media (max-width:900px){.app{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="card">
+    <header>
+      <div>
+        <h1>AI Interview Simulator</h1>
+        <div class="muted">Practice technical & behavioral interviews — mock or real LLM via backend.</div>
+      </div>
+      <div class="top-right">
+        <div class="tag" id="modeTag">Mode: Mock AI</div>
+        <div class="controls">
+          <button id="startBtn">Start Interview</button>
+          <button class="ghost" id="resetBtn">Reset</button>
+        </div>
+      </div>
+    </header>
+
+    <div class="main">
+      <div class="question-box" id="questionBox">
+        <div>
+          <p class="question" id="questionText">Press "Start Interview" to begin.</p>
+          <div class="timer" id="timerText">Elapsed: 0s</div>
+        </div>
+      </div>
+
+      <div>
+        <textarea id="answerInput" placeholder="Type your answer here (or paste) — then click 'Submit Answer'." ></textarea>
+        <div style="display:flex;gap:8px;margin-top:8px;align-items:center">
+          <button id="submitAnswerBtn">Submit Answer</button>
+          <div class="hint">Tip: press Enter+Ctrl to submit quickly.</div>
+        </div>
+      </div>
+
+      <div class="meta">
+        <div class="muted">Question progress: <span id="qProgress">0 / 0</span></div>
+        <div class="muted">Time per question: <span id="timePerQuestion">--</span></div>
+      </div>
+
+      <div class="panel" id="feedbackPanel" style="display:none">
+        <div class="item">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <div>
+              <div class="small">Last answer score</div>
+              <div class="score" id="lastScore">—</div>
+            </div>
+            <div style="width:60%">
+              <div class="small">Clarity</div>
+              <div class="progress"><i id="clarityBar" style="width:0%"></i></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="item">
+          <div class="small">Feedback</div>
+          <div id="feedbackText" style="margin-top:6px">—</div>
+        </div>
+
+        <div class="item followup" id="followupBox" style="display:none">
+          <div class="small">Interviewer follow-up</div>
+          <div id="followupText" style="margin-top:6px">—</div>
+          <div style="display:flex;gap:8px;margin-top:8px">
+            <button id="askFollowupBtn">Ask another follow-up</button>
+            <button class="ghost" id="skipFollowupBtn">Skip</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <footer>
+      This frontend can call a local backend at <code>/api/interview</code> when in "Real LLM" mode. See README.
+    </footer>
+  </div>
+
+  <aside class="card">
+    <h3 style="margin-top:0">Controls & Stats</h3>
+
+    <div class="list">
+      <div class="item">
+        <div class="small">Interview length</div>
+        <select id="lengthSelect" style="width:100%;margin-top:8px;padding:8px;border-radius:8px;background:#021325;color:inherit;border:none">
+          <option value="3">Short — 3 questions</option>
+          <option value="5" selected>Standard — 5 questions</option>
+          <option value="8">Long — 8 questions</option>
+          <option value="12">Full mock — 12 questions</option>
+        </select>
+      </div>
+
+      <div class="item">
+        <div class="small">Question set</div>
+        <select id="setSelect" style="width:100%;margin-top:8px;padding:8px;border-radius:8px;background:#021325;color:inherit;border:none">
+          <option value="mixed" selected>Mixed (behavioral + technical)</option>
+          <option value="behavioral">Behavioral</option>
+          <option value="technical">Technical</option>
+          <option value="system-design">System Design</option>
+        </select>
+      </div>
+
+      <div class="item">
+        <div class="small">Scoring options</div>
+        <div style="display:flex;flex-direction:column;gap:6px;margin-top:8px">
+          <label class="checkbox"><input type="checkbox" id="scoreClarity" checked/> Clarity</label>
+          <label class="checkbox"><input type="checkbox" id="scoreConciseness" checked/> Conciseness</label>
+          <label class="checkbox"><input type="checkbox" id="scoreStructure" checked/> Structure</label>
+        </div>
+      </div>
+
+      <div class="item">
+        <div class="small">Session summary</div>
+        <div id="sessionSummary" style="margin-top:8px" class="small">No session yet.</div>
+      </div>
+
+      <div class="item">
+        <div class="small">Mode</div>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <button id="mockModeBtn" class="ghost">Mock AI (local)</button>
+          <button id="realModeBtn" class="ghost">Real LLM (requires backend)</button>
+        </div>
+        <div class="small muted" style="margin-top:8px">Choose Real LLM and run the Flask backend in this folder to enable server-side scoring/responses.</div>
+      </div>
+
+      <div class="item">
+        <div class="small">Export</div>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <button id="exportJsonBtn" class="ghost">Export JSON</button>
+          <button id="downloadTxtBtn" class="ghost">Download Transcript</button>
+        </div>
+      </div>
+
+    </div>
+
+  </aside>
+</div>
+
+<script>
+(function(){
+  // Questions database
+  const POOLS = {
+    behavioral: [
+      "Tell me about a time you handled a conflict in a team.",
+      "Describe a challenging project and how you managed it.",
+      "How do you prioritize tasks when everything is urgent?",
+      "Give an example of when you received critical feedback and how you responded.",
+      "Describe a time you showed leadership without formal authority."
+    ],
+    technical: [
+      "Explain the difference between a process and a thread.",
+      "How does a hash table work and how do you handle collisions?",
+      "What is the CAP theorem? Give an example.",
+      "Describe how an HTTP request travels from browser to server.",
+      "Explain garbage collection in managed languages."
+    ],
+    "system-design": [
+      "Design a URL shortening service. What components would you build?",
+      "How would you design a chat system supporting millions of users?",
+      "Design an e-commerce order processing pipeline for high throughput.",
+      "Design a metrics collection system to handle millions of events per minute."
+    ],
+    mixed: []
+  };
+  POOLS.mixed = POOLS.behavioral.concat(POOLS.technical).concat(POOLS["system-design"]);
+
+  // State
+  let state = {
+    mode: 'mock',
+    questions: [],
+    currentIndex: -1,
+    startTime: null,
+    qStartTime: null,
+    answers: []
+  };
+
+  // DOM
+  const startBtn = document.getElementById('startBtn');
+  const resetBtn = document.getElementById('resetBtn');
+  const questionText = document.getElementById('questionText');
+  const timerText = document.getElementById('timerText');
+  const answerInput = document.getElementById('answerInput');
+  const submitAnswerBtn = document.getElementById('submitAnswerBtn');
+  const qProgress = document.getElementById('qProgress');
+  const lengthSelect = document.getElementById('lengthSelect');
+  const setSelect = document.getElementById('setSelect');
+  const feedbackPanel = document.getElementById('feedbackPanel');
+  const lastScore = document.getElementById('lastScore');
+  const clarityBar = document.getElementById('clarityBar');
+  const feedbackText = document.getElementById('feedbackText');
+  const followupBox = document.getElementById('followupBox');
+  const followupText = document.getElementById('followupText');
+  const askFollowupBtn = document.getElementById('askFollowupBtn');
+  const skipFollowupBtn = document.getElementById('skipFollowupBtn');
+  const modeTag = document.getElementById('modeTag');
+  const timePerQuestion = document.getElementById('timePerQuestion');
+  const sessionSummary = document.getElementById('sessionSummary');
+  const exportJsonBtn = document.getElementById('exportJsonBtn');
+  const downloadTxtBtn = document.getElementById('downloadTxtBtn');
+  const mockModeBtn = document.getElementById('mockModeBtn');
+  const realModeBtn = document.getElementById('realModeBtn');
+
+  // Helpers
+  function pickQuestions(pool, n){
+    const arr = POOLS[pool] ? POOLS[pool].slice() : POOLS.mixed.slice();
+    for(let i=arr.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[arr[i],arr[j]]=[arr[j],arr[i]]}
+    return arr.slice(0, n);
+  }
+  function now(){return Date.now()}
+  function seconds(delta){return Math.round(delta/1000)}
+
+  // Analysis heuristics (simple, frontend-only)
+  function analyzeAnswer(text, timeTaken){
+    const words = text.trim().split(/\s+/).filter(Boolean);
+    const wc = words.length;
+    const fillers = ["um","uh","like","you know","so","actually","basically","right"];
+    let fillerCount = 0;
+    const lowered = text.toLowerCase();
+    fillers.forEach(f=>{ const re=new RegExp("\\b"+f+"\\b","g"); const m = lowered.match(re); if(m) fillerCount += m.length; });
+    const structureHints = ["first","then","finally","situation","task","action","result","so that","in order to"];
+    let struct = 0;
+    structureHints.forEach(h=>{ if(lowered.includes(h)) struct += 1; });
+    struct = Math.min(5, struct);
+    let clarity = 50 + (Math.min(200, wc) / 200) * 30 - (fillerCount * 6) + (struct * 4);
+    clarity = Math.max(0, Math.min(100, Math.round(clarity)));
+    let conciseness = 100 - Math.min(100, Math.abs(90 - wc)/1.2);
+    conciseness = Math.round(Math.max(0, Math.min(100, conciseness)));
+    const score = Math.round((clarity * 0.45) + (conciseness * 0.25) + (struct/5*100 * 0.2) + ((Math.max(0, 30 - fillerCount)/30)*100 * 0.1));
+    return {words:wc, fillers:fillerCount, structure:struct, clarity, conciseness, score, timeTaken};
+  }
+
+  function suggestFeedback(analysis){
+    const parts = [];
+    if(analysis.fillers > 0) parts.push(`You used ${analysis.fillers} filler word(s). Pause, slow down, and replace fillers with silence.`);
+    if(analysis.words < 30) parts.push("Answer is short — add a brief example or result to strengthen it.");
+    if(analysis.words > 220) parts.push("Answer is long — try splitting into concise bullets and summarizing.");
+    if(analysis.structure < 2) parts.push("Structure your answer: set the situation, action, and result.");
+    if(analysis.clarity < 60) parts.push("Work on clarity: organize thoughts before speaking and avoid tangents.");
+    if(parts.length===0) parts.push("Strong answer — clear structure and concise delivery. Keep it up!");
+    return parts.join(" ");
+  }
+
+  function makeFollowup(question, answer){
+    const q = question.toLowerCase();
+    if(q.includes("team")||q.includes("lead")||q.includes("leadership")) return "Can you give more detail about your specific role and the measurable outcome?";
+    if(q.includes("design")||q.includes("chat")||q.includes("url")||q.includes("system")) return "How would you scale your design for increased load and what bottlenecks would you expect?";
+    if(q.includes("hash")||q.includes("process")||q.includes("thread")||q.includes("http")) return "Can you walk through a concrete example and complexity analysis?";
+    if(q.includes("conflict")||q.includes("feedback")) return "What did you learn from that experience and what would you do differently?";
+    return "Can you provide a short concrete example or numbers to support your answer?";
+  }
+
+  // Timer
+  let timerInterval = null;
+  function startTimers(){
+    state.startTime = now();
+    state.qStartTime = now();
+    if(timerInterval) clearInterval(timerInterval);
+    timerInterval = setInterval(()=>{
+      const elapsed = seconds(now() - state.qStartTime);
+      timerText.textContent = `Elapsed: ${elapsed}s`;
+    }, 500);
+  }
+  function stopTimers(){ if(timerInterval) clearInterval(timerInterval); timerText.textContent = `Elapsed: 0s`; }
+
+  // UI functions
+  function updateProgress(){
+    qProgress.textContent = `${Math.max(0,state.currentIndex+1)} / ${state.questions.length}`;
+    timePerQuestion.textContent = state.questions.length>0 ? Math.round(( (state.questions.length>0 && state.answers.length>0) ? (state.answers.reduce((a,b)=>a+b.timeTaken,0) / state.answers.length) : 0)) + "s" : "--";
+  }
+
+  function nextQuestion(){
+    state.currentIndex += 1;
+    if(state.currentIndex >= state.questions.length){
+      questionText.textContent = "Interview finished — well done!";
+      feedbackPanel.style.display = "block";
+      followupBox.style.display = "none";
+      startBtn.textContent = "Restart Interview";
+      stopTimers();
+      updateSummary();
+      return;
+    }
+    const q = state.questions[state.currentIndex];
+    questionText.textContent = q;
+    answerInput.value = "";
+    feedbackPanel.style.display = "none";
+    followupBox.style.display = "none";
+    state.qStartTime = now();
+    startTimers();
+    updateProgress();
+  }
+
+  function updateSummary(){
+    if(state.answers.length===0){ sessionSummary.textContent = "No answers recorded."; return; }
+    const avg = Math.round(state.answers.reduce((s,a)=>s+a.analysis.score,0) / state.answers.length);
+    const avgClarity = Math.round(state.answers.reduce((s,a)=>s+a.analysis.clarity,0) / state.answers.length);
+    sessionSummary.textContent = `Qs ${state.questions.length} • Answers ${state.answers.length} • Avg score ${avg} • Avg clarity ${avgClarity}`;
+  }
+
+  // Event handlers
+  startBtn.addEventListener('click', ()=>{
+    if(startBtn.textContent === "Restart Interview"){
+      state.answers = [];
+      state.currentIndex = -1;
+      startBtn.textContent = "Start Interview";
+    }
+    const n = parseInt(lengthSelect.value,10);
+    const pool = setSelect.value;
+    state.questions = pickQuestions(pool, n);
+    state.currentIndex = -1;
+    state.answers = [];
+    startBtn.textContent = "Next Question";
+    nextQuestion();
+  });
+
+  resetBtn.addEventListener('click', ()=>{
+    state = {mode:state.mode, questions:[], currentIndex:-1, startTime:null, qStartTime:null, answers:[]};
+    questionText.textContent = "Press \"Start Interview\" to begin.";
+    answerInput.value = "";
+    feedbackPanel.style.display = "none";
+    followupBox.style.display = "none";
+    startBtn.textContent = "Start Interview";
+    stopTimers();
+    updateProgress();
+    sessionSummary.textContent = "No session yet.";
+  });
+
+  submitAnswerBtn.addEventListener('click', ()=>{ submitAnswer(); });
+  answerInput.addEventListener('keydown', (e)=>{ if(e.key==='Enter' && e.ctrlKey){ e.preventDefault(); submitAnswer(); } });
+
+  async function submitAnswer(){
+    if(state.currentIndex < 0 || state.currentIndex >= state.questions.length) return alert("Start the interview first.");
+    const ans = answerInput.value.trim();
+    const q = state.questions[state.currentIndex];
+    const timeTaken = seconds(now() - state.qStartTime);
+    if(ans.length===0) return alert("Please type an answer before submitting.");
+
+    if(state.mode === 'mock'){
+      const analysis = analyzeAnswer(ans, timeTaken);
+      state.answers.push({question:q, answer:ans, analysis, timestamp: new Date().toISOString()});
+      feedbackPanel.style.display = "block";
+      lastScore.textContent = analysis.score;
+      clarityBar.style.width = analysis.clarity + "%";
+      feedbackText.textContent = suggestFeedback(analysis);
+      const fu = makeFollowup(q, ans);
+      followupText.textContent = fu;
+      followupBox.style.display = "block";
+      startBtn.textContent = "Next Question";
+      stopTimers();
+      updateProgress();
+      updateSummary();
+      return;
+    }
+
+    // Real LLM mode: send to backend /api/interview
+    try{
+      feedbackPanel.style.display = "block";
+      lastScore.textContent = "…";
+      clarityBar.style.width = "0%";
+      feedbackText.textContent = "Requesting feedback from server...";
+      const resp = await fetch('/api/interview', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({question:q, answer:ans, timeTaken})
+      });
+      if(!resp.ok){ throw new Error('Server error: ' + resp.statusText); }
+      const data = await resp.json();
+      // Expected data: {analysis: {score, clarity, conciseness, structure, fillers, words}, feedback, followup, serverReply}
+      const analysis = data.analysis || {};
+      state.answers.push({question:q, answer:ans, analysis, timestamp: new Date().toISOString(), serverReply: data.serverReply || null});
+      lastScore.textContent = analysis.score ?? '—';
+      clarityBar.style.width = (analysis.clarity ?? 0) + "%";
+      feedbackText.textContent = data.feedback || data.serverReply || "No feedback returned.";
+      followupText.textContent = data.followup || "—";
+      followupBox.style.display = data.followup ? "block" : "none";
+      startBtn.textContent = "Next Question";
+      stopTimers();
+      updateProgress();
+      updateSummary();
+    }catch(err){
+      feedbackText.textContent = "Error getting server feedback: " + err.message;
+      lastScore.textContent = "—";
+      clarityBar.style.width = "0%";
+      followupBox.style.display = "none";
+    }
+  }
+
+  askFollowupBtn.addEventListener('click', ()=>{
+    if(state.currentIndex<0) return;
+    const fu = followupText.textContent;
+    state.questions.splice(state.currentIndex+1,0,fu);
+    followupBox.style.display = "none";
+    startBtn.textContent = "Next Question";
+    alert("Follow-up question queued. Click 'Next Question' to continue.");
+  });
+
+  skipFollowupBtn.addEventListener('click', ()=>{
+    followupBox.style.display = "none";
+  });
+
+  exportJsonBtn.addEventListener('click', ()=>{
+    const blob = new Blob([JSON.stringify({created:new Date().toISOString(), questions:state.questions, answers:state.answers}, null, 2)], {type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = 'ai_interview_session.json'; a.click(); URL.revokeObjectURL(url);
+  });
+  downloadTxtBtn.addEventListener('click', ()=>{
+    let content = "";
+    state.answers.forEach((r,i)=>{ content += `Q${i+1}: ${r.question}\nA: ${r.answer}\nScore: ${r.analysis.score}\n\n`; });
+    const blob = new Blob([content], {type:'text/plain'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = 'transcript.txt'; a.click(); URL.revokeObjectURL(url);
+  });
+
+  mockModeBtn.addEventListener('click', ()=>{ state.mode='mock'; modeTag.textContent='Mode: Mock AI'; alert('Mock AI mode selected — runs fully in the browser.'); });
+  realModeBtn.addEventListener('click', ()=>{ state.mode='real'; modeTag.textContent='Mode: Real LLM (requires backend)'; alert('Real LLM mode selected. Make sure you run the Flask backend and set OPENAI_API_KEY in the environment.'); });
+
+  document.addEventListener('keydown', (e)=>{ if(e.key===' ' && document.activeElement.tagName !== 'TEXTAREA') { e.preventDefault(); answerInput.focus(); } });
+
+  (function init(){ lengthSelect.value = "5"; setSelect.value = "mixed"; updateProgress(); })();
+
+})();
+</script>
+</body>
+</html>
